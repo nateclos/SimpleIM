@@ -46,14 +46,38 @@ public class SimpleIMClient extends Application {
 	@Override
 	public void start(Stage stage) throws Exception {
 		
+		initGuiObjects(stage);
+		
+		appendMessage("Connecting to server...");
+		
+		createThread(stage);
+	}
+	
+	private void initGuiObjects(Stage stage) {
+		
 		this.bp = new BorderPane();
+		
+		stage.setTitle("SimpleIM Client");
+		stage.setResizable(false);
+		stage.setScene(new Scene(bp, 400, 400));
+		stage.show();
+		stage.setOnCloseRequest((WindowEvent e) -> {
+			this.socketAccepter.interrupt();
+		});
+		stage.setOnHidden(e -> {
+			try {
+				this.serverConnection.close();
+			} catch (IOException e1) {
+				e1.printStackTrace();
+			}
+			this.socketAccepter.interrupt();
+		});
+		
 		this.messages = new TextArea();
 		messages.setEditable(false);
 		messages.setOpacity(0.60);
 		messages.setWrapText(true);
-		bp.setCenter(messages);
 		
-		HBox hb = new HBox();
 		this.messageWritingField = new TextField();
 		messageWritingField.setOnKeyPressed((KeyEvent k) -> {
 			
@@ -68,29 +92,17 @@ public class SimpleIMClient extends Application {
 		});
 				
 		send = new Button("Send");
-		Button darkMode = new Button("Dark Theme");
-		Button purge = new Button("Purge");
-		hb.getChildren().addAll(messageWritingField, send);
-		hb.getChildren().addAll(darkMode, purge);
-		bp.setBottom(hb);
-		
-		stage.setTitle("SimpleIM Client");
-		stage.setResizable(false);
-		stage.setScene(new Scene(bp, 400, 400));
-		stage.show();
-		stage.setOnCloseRequest((WindowEvent e) -> {
-			this.socketAccepter.interrupt();
-		});
-		
-		stage.setOnHidden(e -> {
+		send.setOnAction((event) -> {
 			try {
-				this.serverConnection.close();
-			} catch (IOException e1) {
-				e1.printStackTrace();
+				sendMessage(messageWritingField.getText());
+				messageWritingField.setText("");
+				Platform.runLater(() -> appendMessage("The connection has been lost."));
+			} catch (IOException e) {
+				e.printStackTrace();
 			}
-			this.socketAccepter.interrupt();
 		});
-
+		
+		Button darkMode = new Button("Dark Theme");
 		darkMode.setOnAction((event) -> {
 
 			if(darkTheme) {
@@ -103,24 +115,24 @@ public class SimpleIMClient extends Application {
 			}
 		});
 		
+		Button purge = new Button("Purge");
 		purge.setOnAction((event) -> {
 			this.messages.clear();
 		});
 		
-		send.setOnAction((event) -> {
-			try {
-				sendMessage(messageWritingField.getText());
-				messageWritingField.setText("");
-				Platform.runLater(() -> appendMessage("The connection has been lost."));
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-		});
+		HBox hb = new HBox();
+		hb.getChildren().addAll(messageWritingField, send, darkMode, purge);
+		bp.setBottom(hb);
+		bp.setCenter(messages);
 		
-		appendMessage("Connecting to server...");
+	}
+	
+	private void createThread(Stage stage) {
 		
 		this.socketAccepter = new Thread() {
+			
 			public void run() {
+				
 				try {
 					// accept connection
 					serverConnection = new Socket("127.0.0.1", 4000);
@@ -145,7 +157,6 @@ public class SimpleIMClient extends Application {
 					} catch (EOFException exc) {
 						Platform.runLater(() -> appendMessage("Server disconnected....RIP"));
 					} catch (IOException exc) {
-						// some other I/O error: print it, log it, etc.
 						exc.printStackTrace();
 					} catch (ClassNotFoundException exc) {
 						exc.printStackTrace();
@@ -157,6 +168,7 @@ public class SimpleIMClient extends Application {
 				}
 			};
 			socketAccepter.start();
+			
 	}
 	
 	public void sendMessage(String message) throws IOException {

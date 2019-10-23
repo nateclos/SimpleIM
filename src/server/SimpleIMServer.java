@@ -43,8 +43,60 @@ public class SimpleIMServer extends Application {
 	int number;
 
 	@Override
-	public void start(Stage primaryStage) throws Exception {
+	public void start(Stage stage) throws Exception {
 
+		initGuiObjects(stage);
+		
+		/* set up networking */
+		ServerSocket serverSocket = new ServerSocket(4000);
+		appendMessage("Waiting for a client connection...");
+
+		// create a new thread to manage connections, so it doesn't block the UI
+		this.socketAccepter = new Thread() {
+			public void run() {
+				try {
+					// accept connection
+					clientConnection = serverSocket.accept();
+					output = new ObjectOutputStream(clientConnection.getOutputStream());
+					input = new ObjectInputStream(clientConnection.getInputStream());
+					Platform.runLater(() -> {
+						appendMessage("connected!");
+					});
+
+					// read in messages continuously
+					try {
+						while (true) {
+							Message received = (Message) input.readObject();
+							Platform.runLater(() -> received.reverseCipher());
+							Platform.runLater(() -> appendMessage("[Guest]: " + received.getMessage()));
+							if(!stage.isFocused()) {
+								Platform.runLater(() -> stage.requestFocus());
+							}
+						}
+					} catch (SocketTimeoutException exc) {
+						Platform.runLater(() -> appendMessage("Timed out while waiting for a response."));
+					} catch (EOFException exc) {
+						Platform.runLater(() -> appendMessage("Client disconnected....RIP"));
+					} catch (IOException exc) {
+						// some other I/O error: print it, log it, etc.
+						exc.printStackTrace();
+					} catch (ClassNotFoundException exc) {
+						exc.printStackTrace();
+					} finally {
+						clientConnection.close();
+						serverSocket.close();
+					}
+				} catch (IOException ioe) {
+					ioe.printStackTrace();
+					Platform.runLater(() -> appendMessage("An error occured while waiting for a connection."));
+				}
+			}
+		};
+		socketAccepter.start();
+	}
+	
+	private void initGuiObjects(Stage stage) {
+		
 		bp = new BorderPane();
 		messages = new TextArea();
 		messages.setEditable(false);
@@ -74,11 +126,11 @@ public class SimpleIMServer extends Application {
 		messageWritingArea.getChildren().add(purge);
 		bp.setBottom(messageWritingArea);
 
-		primaryStage.setTitle("SimpleIM Server");
-		primaryStage.setResizable(false);
-		primaryStage.setScene(new Scene(bp, 400, 400));
-		primaryStage.show();
-		primaryStage.setOnHidden(e -> {
+		stage.setTitle("SimpleIM Server");
+		stage.setResizable(false);
+		stage.setScene(new Scene(bp, 400, 400));
+		stage.show();
+		stage.setOnHidden(e -> {
 			try {
 				this.clientConnection.close();
 			} catch (IOException e1) {
@@ -90,11 +142,11 @@ public class SimpleIMServer extends Application {
 		darkMode.setOnAction((event) -> {
 
 			if(darkTheme) {
-				primaryStage.getScene().getStylesheets().remove("dark_theme.css");
+				stage.getScene().getStylesheets().remove("dark_theme.css");
 				darkTheme = false;
 			}
 			else {
-				primaryStage.getScene().getStylesheets().add("dark_theme.css");
+				stage.getScene().getStylesheets().add("dark_theme.css");
 				darkTheme = true;
 			}
 		});
@@ -112,53 +164,6 @@ public class SimpleIMServer extends Application {
 		purge.setOnAction((event) -> {
 			this.messages.clear();
 		});
-		
-		/* set up networking */
-		ServerSocket serverSocket = new ServerSocket(4000);
-		appendMessage("Waiting for a client connection...");
-
-		// create a new thread to manage connections, so it doesn't block the UI
-		this.socketAccepter = new Thread() {
-			public void run() {
-				try {
-					// accept connection
-					clientConnection = serverSocket.accept();
-					output = new ObjectOutputStream(clientConnection.getOutputStream());
-					input = new ObjectInputStream(clientConnection.getInputStream());
-					Platform.runLater(() -> {
-						appendMessage("connected!");
-					});
-
-					// read in messages continuously
-					try {
-						while (true) {
-							Message received = (Message) input.readObject();
-							Platform.runLater(() -> received.reverseCipher());
-							Platform.runLater(() -> appendMessage("[Guest]: " + received.getMessage()));
-							if(!primaryStage.isFocused()) {
-								Platform.runLater(() -> primaryStage.requestFocus());
-							}
-						}
-					} catch (SocketTimeoutException exc) {
-						Platform.runLater(() -> appendMessage("Timed out while waiting for a response."));
-					} catch (EOFException exc) {
-						Platform.runLater(() -> appendMessage("Client disconnected....RIP"));
-					} catch (IOException exc) {
-						// some other I/O error: print it, log it, etc.
-						exc.printStackTrace();
-					} catch (ClassNotFoundException exc) {
-						exc.printStackTrace();
-					} finally {
-						clientConnection.close();
-						serverSocket.close();
-					}
-				} catch (IOException ioe) {
-					ioe.printStackTrace();
-					Platform.runLater(() -> appendMessage("An error occured while waiting for a connection."));
-				}
-			}
-		};
-		socketAccepter.start();
 	}
 
 	/**
