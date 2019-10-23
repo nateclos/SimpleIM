@@ -48,7 +48,7 @@ public class SimpleIMServer extends Application {
 		bp = new BorderPane();
 		messages = new TextArea();
 		messages.setEditable(false);
-		messages.setOpacity(0.75);
+		messages.setOpacity(0.60);
 		messages.setWrapText(true);
 		bp.setCenter(messages);
 

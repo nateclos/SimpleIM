@@ -49,7 +49,7 @@ public class SimpleIMClient extends Application {
 		this.bp = new BorderPane();
 		this.messages = new TextArea();
 		messages.setEditable(false);
-		messages.setOpacity(0.25);
+		messages.setOpacity(0.60);
 		messages.setWrapText(true);
 		bp.setCenter(messages);
 		
