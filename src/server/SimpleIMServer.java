@@ -47,9 +47,85 @@ public class SimpleIMServer extends Application {
 
 		initGuiObjects(stage);
 		
+		appendMessage("Waiting for a client connection...");
+		
+		createThread(stage);
+	}
+	
+	private void initGuiObjects(Stage stage) {
+		
+		bp = new BorderPane();
+		
+		stage.setTitle("SimpleIM Server");
+		stage.setResizable(false);
+		stage.setScene(new Scene(bp, 400, 400));
+		stage.show();
+		stage.setOnHidden(e -> {
+			try {
+				this.clientConnection.close();
+			} catch (IOException e1) {
+				e1.printStackTrace();
+			}
+			this.socketAccepter.interrupt();
+		});
+		
+		messages = new TextArea();
+		messages.setEditable(false);
+		messages.setOpacity(0.60);
+		messages.setWrapText(true);
+		bp.setCenter(messages);
+
+		messageWritingField = new TextField();
+		messageWritingField.setOnKeyPressed((KeyEvent k) -> {
+			
+			if(k.getCode().equals(KeyCode.ENTER)) {
+				try {
+					sendMessage(messageWritingField.getText());
+					messageWritingField.setText("");
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+		});
+		
+		Button darkMode = new Button("Dark Theme");
+		darkMode.setOnAction((event) -> {
+
+			if(darkTheme) {
+				stage.getScene().getStylesheets().remove("dark_theme.css");
+				darkTheme = false;
+			}
+			else {
+				stage.getScene().getStylesheets().add("dark_theme.css");
+				darkTheme = true;
+			}
+		});
+
+		sendButton = new Button("Send");
+		sendButton.setOnAction((event) -> {
+			try {
+				sendMessage(messageWritingField.getText());
+				messageWritingField.setText("");
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		});
+		
+		Button purge = new Button("Purge");
+		purge.setOnAction((event) -> {
+			this.messages.clear();
+		});
+		
+		HBox messageWritingArea = new HBox();
+		messageWritingArea.getChildren().addAll(messageWritingField, sendButton, darkMode, purge);
+		bp.setBottom(messageWritingArea);
+		
+	}
+	
+	private void createThread(Stage stage) throws IOException {
+		
 		/* set up networking */
 		ServerSocket serverSocket = new ServerSocket(4000);
-		appendMessage("Waiting for a client connection...");
 
 		// create a new thread to manage connections, so it doesn't block the UI
 		this.socketAccepter = new Thread() {
@@ -78,7 +154,6 @@ public class SimpleIMServer extends Application {
 					} catch (EOFException exc) {
 						Platform.runLater(() -> appendMessage("Client disconnected....RIP"));
 					} catch (IOException exc) {
-						// some other I/O error: print it, log it, etc.
 						exc.printStackTrace();
 					} catch (ClassNotFoundException exc) {
 						exc.printStackTrace();
@@ -93,77 +168,7 @@ public class SimpleIMServer extends Application {
 			}
 		};
 		socketAccepter.start();
-	}
-	
-	private void initGuiObjects(Stage stage) {
 		
-		bp = new BorderPane();
-		messages = new TextArea();
-		messages.setEditable(false);
-		messages.setOpacity(0.60);
-		messages.setWrapText(true);
-		bp.setCenter(messages);
-
-		HBox messageWritingArea = new HBox();
-		messageWritingField = new TextField();
-		messageWritingField.setOnKeyPressed((KeyEvent k) -> {
-			
-			if(k.getCode().equals(KeyCode.ENTER)) {
-				try {
-					sendMessage(messageWritingField.getText());
-					messageWritingField.setText("");
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
-			}
-		});
-		sendButton = new Button("Send");
-		Button darkMode = new Button("Dark Theme");
-		Button purge = new Button("Purge");
-		messageWritingArea.getChildren().add(messageWritingField);
-		messageWritingArea.getChildren().add(sendButton);
-		messageWritingArea.getChildren().add(darkMode);
-		messageWritingArea.getChildren().add(purge);
-		bp.setBottom(messageWritingArea);
-
-		stage.setTitle("SimpleIM Server");
-		stage.setResizable(false);
-		stage.setScene(new Scene(bp, 400, 400));
-		stage.show();
-		stage.setOnHidden(e -> {
-			try {
-				this.clientConnection.close();
-			} catch (IOException e1) {
-				e1.printStackTrace();
-			}
-			this.socketAccepter.interrupt();
-		});
-
-		darkMode.setOnAction((event) -> {
-
-			if(darkTheme) {
-				stage.getScene().getStylesheets().remove("dark_theme.css");
-				darkTheme = false;
-			}
-			else {
-				stage.getScene().getStylesheets().add("dark_theme.css");
-				darkTheme = true;
-			}
-		});
-
-		/* set up button handler */
-		sendButton.setOnAction((event) -> {
-			try {
-				sendMessage(messageWritingField.getText());
-				messageWritingField.setText("");
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-		});
-		
-		purge.setOnAction((event) -> {
-			this.messages.clear();
-		});
 	}
 
 	/**
